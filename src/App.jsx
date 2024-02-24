@@ -3,29 +3,60 @@ import rough from 'roughjs/bundled/rough.esm'
 import RectagleIcon from "./assets/reactIcon"
 import LineIcon from "./assets/lineIcon"
 import CircleIcon from "./assets/circleIcon"
+import CursorIcon from "./assets/cursoricon"
 
 
 const generator = rough.generator()
-function createElement(x1, y1, x2, y2, ElementType) {
+function createElement(id, x1, y1, x2, y2, type) {
   let roughElement;
-  if (ElementType === 'line') {
+  if (type === 'line') {
     roughElement = generator.line(x1, y1, x2, y2)
-  } else if (ElementType === 'rectangle') {
+  } else if (type === 'rectangle') {
     roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1)
-  } else if (ElementType === 'circle') {
+  } else if (type === 'circle') {
     const d = (x2 - x1) + (y2 - y1)
     roughElement = generator.circle(x1, y1, d)
   }
-
-
-  return { x1, y1, x2, y2, roughElement }
+  return { id, x1, y1, x2, y2, type, roughElement }
 }
+
+function isWithInElement(x, y, element) {
+
+  const { type, x1, y1, x2, y2 } = element
+
+
+  if (type === 'rectangle') {
+    const minX = Math.min(x1, x2)
+    const maxX = Math.max(x1, x2)
+    const minY = Math.min(y1, y2)
+    const maxY = Math.max(y1, y2)
+    return x >= minX && x <= maxX && y >= minY && y <= maxY
+  } {
+    const a = { x: x1, y: y1 }
+    const b = { x: x2, y: y2 }
+    const c = { x, y }
+    const offset = distance(a, b) - (distance(a, c) + distance(b, c))
+    return Math.abs(offset) < 1
+
+  }
+
+
+}
+const distance = (a, b) => Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+function getElementPosition(x1, y1, elements) {
+  return elements.find((element) => isWithInElement(x1, y1, element))
+
+}
+
+
 const App = () => {
 
   const [elements, setElement] = useState([]);
-  const [ElementType, setElementType] = useState("rectangle");
+  const [Tool, setTool] = useState("rectangle");
 
-  const [drawing, setDrawing] = useState(false);
+  const [SelectedELement, setSelectedELement] = useState({});
+
+  const [action, setAction] = useState("none");
 
 
   useLayoutEffect(() => {
@@ -42,30 +73,53 @@ const App = () => {
 
 
   const handleOnMouseDown = (e) => {
-    setDrawing(true)
-    const { clientX, clientY } = e;
-    const element = createElement(clientX, clientY, clientX, clientY, ElementType)
-    setElement((prev) => [...prev, element])
-  }
-  const handleOnMouseUp = () => {
-    setDrawing(false)
-
-  }
-  const handleOnMouseMove = (e) => {
-    if (!drawing) return
 
     const { clientX, clientY } = e;
+    if (Tool === 'selection') {
+      console.log('tes');
+      const element = getElementPosition(clientX, clientY, elements)
+      if (element) {
+        setSelectedELement(element)
+        setAction('moving')
+      }
+      return
+    } else {
+      const id = elements.length
+      const element = createElement(id, clientX, clientY, clientX, clientY, Tool)
+      setElement((prev) => [...prev, element])
+      setAction("drawing")
+      return
+    }
+  }
 
-    const index = elements.length - 1
-    const { x1, y1 } = elements[index]
+  const handleUpdateElement = (id, x1, y1, x2, y2, Tool) => {
 
-    const UpdatedElement = createElement(x1, y1, clientX, clientY, ElementType)
+    const UpdatedElement = createElement(id, x1, y1, x2, y2, Tool)
 
     const elementCopy = [...elements]
 
-    elementCopy[index] = UpdatedElement
+    elementCopy[id] = UpdatedElement
 
     setElement(elementCopy)
+  }
+  const handleOnMouseUp = () => {
+    setAction("none")
+
+  }
+  const handleOnMouseMove = (e) => {
+    const { clientX, clientY } = e;
+    if (action === 'drawing') {
+      const index = elements.length - 1
+      const { x1, y1 } = elements[index]
+      const id = elements.length
+      handleUpdateElement(id, x1, y1, clientX, clientY, Tool)
+    } else if (action === 'moving') {
+      const { id, x1, y1, y2, x2, type } = SelectedELement
+      const width = x2 - x1;
+      const height = y2 - y1
+      handleUpdateElement(id, clientX, clientY, clientX + width, clientY + height, type)
+
+    }
   }
 
 
@@ -75,20 +129,26 @@ const App = () => {
 
       <div className="fixed flex gap-x-4  left-1/2 transform -translate-x-1/2 top-6 bg-gray-100 border-2 p-2 rounded-lg  ">
         <div
-          onClick={() => setElementType("rectangle")}
-          className={`  flex cursor-pointer gap-2 ${ElementType === 'rectangle' ? "bg-gray-200" : 'bg-gray-100'}  p-2 rounded-lg   items-end`} >
+          onClick={() => setTool("selection")}
+          className={`  flex cursor-pointer gap-2 ${Tool === 'selection' ? "bg-gray-200" : 'bg-gray-100'}  p-2 rounded-lg   items-end`} >
+          <CursorIcon />
+          <span className="text-xs">V</span>
+        </div>
+        <div
+          onClick={() => setTool("rectangle")}
+          className={`  flex cursor-pointer gap-2 ${Tool === 'rectangle' ? "bg-gray-200" : 'bg-gray-100'}  p-2 rounded-lg   items-end`} >
           <RectagleIcon />
           <span className="text-xs">R</span>
         </div>
         <div
-          onClick={() => setElementType("line")}
-          className={`flex ${ElementType === 'line' ? "bg-gray-200" : 'bg-gray-100'}  cursor-pointer  gap-2 p-2 rounded-lg items-end `}>
+          onClick={() => setTool("line")}
+          className={`flex ${Tool === 'line' ? "bg-gray-200" : 'bg-gray-100'}  cursor-pointer  gap-2 p-2 rounded-lg items-end `}>
           <LineIcon />
           <span className="text-xs">L</span>
         </div>
         <div
-          onClick={() => setElementType("circle")}
-          className={`flex ${ElementType === 'circle' ? "bg-gray-200" : 'bg-gray-100'}  cursor-pointer  gap-2 p-2 rounded-lg items-end `}>
+          onClick={() => setTool("circle")}
+          className={`flex ${Tool === 'circle' ? "bg-gray-200" : 'bg-gray-100'}  cursor-pointer  gap-2 p-2 rounded-lg items-end `}>
           <CircleIcon />
           <span className="text-xs">C</span>
         </div>
