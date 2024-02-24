@@ -64,8 +64,6 @@ const App = () => {
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-
-
     const roughCanvas = rough.canvas(canvas)
     elements.forEach(({ roughElement }) => roughCanvas.draw(roughElement))
   }, [elements])
@@ -76,19 +74,20 @@ const App = () => {
 
     const { clientX, clientY } = e;
     if (Tool === 'selection') {
-      console.log('tes');
       const element = getElementPosition(clientX, clientY, elements)
       if (element) {
         setSelectedELement(element)
         setAction('moving')
       }
-      return
     } else {
-      const id = elements.length
-      const element = createElement(id, clientX, clientY, clientX, clientY, Tool)
-      setElement((prev) => [...prev, element])
-      setAction("drawing")
-      return
+      if (action !== 'drawing') {
+        console.count("creating");
+        setAction("drawing")
+        const id = elements.length
+        const element = createElement(id, clientX, clientY, clientX, clientY, Tool)
+        setElement((prev) => [...prev, element])
+      }
+
     }
   }
 
@@ -110,8 +109,8 @@ const App = () => {
     const { clientX, clientY } = e;
     if (action === 'drawing') {
       const index = elements.length - 1
-      const { x1, y1 } = elements[index]
-      const id = elements.length
+      const { x1, y1, id } = elements[index]
+
       handleUpdateElement(id, x1, y1, clientX, clientY, Tool)
     } else if (action === 'moving') {
       const { id, x1, y1, y2, x2, type } = SelectedELement
